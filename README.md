@@ -1,13 +1,15 @@
-# ESP_SysLogger
+# LittleFS_SysLogger
 A system Logger Library for the ESP micro controller chips
 
-The footprint is about 40k of program storage space and 2.4k of dynamic memory.
+# WORK IN PROGRESS
+### NOT EVERYTHING IS WORKING AT THE MOMENT!
+### WORKING ON IT
 
 ## setup your code
 
-You need to include "ESP_SysLogger.h"
+You need to include "LittleFS_SysLogger.h"
 ```
-#include "ESP_SysLogger.h"
+#include "LittleFS_SysLogger.h"
 ```
 
 Then you need to create the ESPSL object 
@@ -16,7 +18,7 @@ ESPSL sysLog;
 ```
 In `setup()` add the following code to create or open a log file of 100 lines, 80 chars/line
 ```
-   SPIFFS.begin();
+   LittleFS.begin();
    .
    .
    if (!sysLog.begin(100, 80)) {
@@ -32,7 +34,7 @@ or
 ```
    sysLog.writef("This is line [%d] of [%s]", __LINE__, __FUNCTION__);
 ```
-To display the sytem log file you first have to tell the ESP_SysLogger where to start
+To display the sytem log file you first have to tell the LittleFS_SysLogger where to start
 and how many lines you want to see
 ```
    Serial.println("\n=====from oldest to end==============================");
@@ -194,7 +196,7 @@ Return boolean. **true** if succeeded, otherwise **false**
 
 
 #### ESPSL::getLastLineID()
-Internaly the ESP_SysLogger uses sequential **lineID**'s to uniquely
+Internaly the LittleFS_SysLogger uses sequential **lineID**'s to uniquely
 identify each log line in the file. With this method you can query
 the last used **lineID**.
 <br>
@@ -202,7 +204,7 @@ Return uint32_t. Last used **lineID**.
 
 
 #### ESPSL::setDebugLvl(int8_t debugLvl)
-If **_DODEBUG** is defines in the **ESP_SysLogger.h** file you can use this
+If **_DODEBUG** is defines in the **LittleFS_SysLogger.h** file you can use this
 method to set the debug level to display specific Debug lines to **Serial**.
 
 
