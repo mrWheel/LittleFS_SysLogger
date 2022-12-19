@@ -204,7 +204,7 @@ void setup()
   //--> min linesize is set to @50
   //-----------------------------------------------------------------
   // use existing sysLog file or create one
-  if (!sysLog.begin(33, 60))     
+  if (!sysLog.begin(27, 60))     
   {   
     Serial.println("Error opening sysLog!\r\nCreated sysLog!");
     delay(5000);
