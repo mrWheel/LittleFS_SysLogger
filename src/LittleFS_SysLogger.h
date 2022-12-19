@@ -1,7 +1,7 @@
 /*
 **  Program   : LittleFS_SysLogger.h
 **
-**  Version   : 2.0.1   (18-12-2022)
+**  Version   : 2.0.1   (19-12-2022)
 **
 **  Copyright (c) 2022 .. 2023 Willem Aandewiel
 **
@@ -20,7 +20,8 @@ class ESPSL {
   #define _MAXLINEWIDTH 150
   #define _MINLINEWIDTH  50
   #define _MINNUMLINES   10
-  #define _KEYLEN         9
+  #define _KEYLEN        11
+  #define _EMPTYID       -1
   
 public:
   ESPSL();
@@ -32,10 +33,10 @@ public:
   boolean   writef(const char *fmt, ...);
   char     *buildD(const char *fmt, ...);
   boolean   writeDbg(const char *dbg, const char *fmt, ...);
-  void      startReading(int16_t startLine, int16_t numLines);    // Returns last line read
-  void      startReading(int16_t startLine);                      // Returns last line read
+  void      startReading();    // Returns last line read
   bool      readNextLine(char *lineOut, int lineOutLen);
-  String    dumpLogFile();
+  bool      readPreviousLine(char *lineOut, int lineOutLen);
+  bool      dumpLogFile();
   boolean   removeSysLog();
   uint32_t  getLastLineID();
   void      setOutput(HardwareSerial *serIn, int baud);
@@ -51,24 +52,25 @@ private:
   boolean         _serialOn;
 
   File        _sysLog;
-  uint32_t    _lastUsedLineID;
-  uint32_t    _oldestLineID;
-  int32_t     _noLines;
+  char        globalBuff[_MAXLINEWIDTH +15];
+  int32_t     _lastUsedLineID;
+  int32_t     _oldestLineID;
+  int32_t     _numLines;
   int32_t     _lineWidth;
   int32_t     _recLength;
-  uint32_t    _readPointer;
-  uint32_t    _readEnd;
+  int32_t     _readNext;
+  int32_t     _readNextEnd;
+  int32_t     _readPrevious;
+  int32_t     _readPreviousEnd;
   int8_t      _debugLvl = 0;
-  char        globalBuff[_MAXLINEWIDTH +15];
-  int8_t      _emptyID = -1;
   
   boolean     create(uint16_t depth, uint16_t lineWidth);
   boolean     init();
   const char *rtrim(char *);
   boolean     checkSysLogFileSize(const char* func, int32_t cSize);
+  int32_t     sysLogFileSize();
   void        fixLineWidth(char *inLine, int lineLen);
   void        fixRecLen(char *inLine, int32_t key, int recLen);
-  int32_t     sysLogFileSize();
   void        print(const char*);
   void        println(const char*);
   void        printf(const char *fmt, ...);

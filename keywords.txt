@@ -19,6 +19,7 @@ writeDbg							KEYWORD2
 buildD							KEYWORD2
 startReading							KEYWORD2
 readNextLine							KEYWORD2
+readPreviousLine				  KEYWORD2
 dumpLogFile							KEYWORD2
 removeSysLog							KEYWORD2
 getLastLineID							KEYWORD2

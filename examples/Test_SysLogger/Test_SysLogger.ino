@@ -1,16 +1,25 @@
 /*
 **  Program   : ESP_SysLogger
 */
-#define _FW_VERSION "v1.5.0 (05-12-2019)"
+#define _FW_VERSION "v2.0.1 (19-12-2019)"
 /*
-**  Copyright (c) 2019 Willem Aandewiel
+**  Copyright (c) 2019 .. 2023 Willem Aandewiel
 **
 **  TERMS OF USE: MIT License. See bottom of file.
 ***************************************************************************/
 
 #include <TimeLib.h>            // https://github.com/PaulStoffregen/Time
 
-#include "ESP_SysLogger.h"
+#define _LITTLEFS
+//#define _SPIFFS
+#ifdef _SPIFFS
+  #include "SPIFFS_SysLogger.h"
+  #define _FSYS SPIFFS
+#endif
+#ifdef _LITTLEFS
+  #include "LittleFS_SysLogger.h"
+  #define _FSYS LittleFS
+#endif
 ESPSL sysLog;                   // Create instance of the ESPSL object
 
 /*
@@ -19,13 +28,15 @@ ESPSL sysLog;                   // Create instance of the ESPSL object
 */
 #if defined(_Time_h)
 /* example of debug info with time information */
-  #define writeToSysLog(...) ({ sysLog.writeDbg( sysLog.buildD("[%02d:%02d:%02d][%-12.12s] "    \
-                                                               , hour(), minute(), second()     \
-                                                               , __FUNCTION__)                  \
+  #define writeToSysLog(...) ({ sysLog.writeDbg( sysLog.buildD("(%4d)[%02d:%02d:%02d][%-12.12s] " \
+                                                               , number++                         \
+                                                               , hour(), minute(), second()       \
+                                                               , __FUNCTION__)                    \
                                                 ,__VA_ARGS__); })
 #else
 /* example of debug info with calling function and line in calling function */
-  #define writeToSysLog(...) ({ sysLog.writeDbg( sysLog.buildD("[%-12.12s(%4d)] "               \
+  #define writeToSysLog(...) ({ sysLog.writeDbg( sysLog.buildD("(%4d)[%-12.12s(%4d)] "          \
+                                                               , number++                       \
                                                                , __FUNCTION__, __LINE__)        \
                                                 ,__VA_ARGS__); })
 #endif
@@ -34,45 +45,54 @@ ESPSL sysLog;                   // Create instance of the ESPSL object
   #define LED_BUILTIN 2
 #endif
 
-uint32_t statusTimer;
-
+uint32_t  statusTimer;
+uint32_t  number = 0;
 
 //-------------------------------------------------------------------------
-void listSPIFFS(void)
+void listFileSys(bool doSysLog)
 {
   Serial.println("===============================================================");
 #if defined(ESP8266)
   {
-  Dir dir = SPIFFS.openDir("/");         // List files on SPIFFS
+  Dir dir = _FSYS.openDir("/");         // List files on LittleFS
   while (dir.next())  
   {
     String fileName = dir.fileName();
     size_t fileSize = dir.fileSize();
     Serial.printf("FS File: %s, size: %d\n", fileName.c_str(), fileSize);
+    if (doSysLog)
+    {
+      writeToSysLog("FS File: %s, size: %d\r\n", fileName.c_str(), fileSize);
+    }
   }
 }
 #else
 {
-  File root = SPIFFS.open("/");
+  File root = _FSYS.open("/");
   File file = root.openNextFile();
   while(file)
   {
     String fileName = file.name();
     size_t fileSize = file.size();
-    Serial.printf("FS File: %s, size: %d\n", fileName.c_str(), fileSize);
+    Serial.printf("FS File: %s, size: %d\r\n", fileName.c_str(), fileSize);
+    if (doSysLog)
+    {
+      writeToSysLog("FS File: %s, size: %d\r\n", fileName.c_str(), fileSize);
+    }
     file = root.openNextFile();
   }
 }
 #endif
   Serial.println("===============================================================");
-} // listSPIFFS()
+  
+} // listFileSys()
 
 
 //-------------------------------------------------------------------------
 void showBareLogFile() 
 {
   Serial.println("\n=====================================================");
-  writeToSysLog("Dump logFile [sysLog.dumpLogFile()]");
+  //writeToSysLog("Dump logFile [sysLog.dumpLogFile()]");
   sysLog.dumpLogFile();
 
 } // showBareLogFile()
@@ -81,64 +101,61 @@ void showBareLogFile()
 //-------------------------------------------------------------------------
 void testReadnext() 
 {
-  String lLine;
-
-  writeToSysLog("testing startReading() & readNextLine() functions...");
+  char  lLine[200] = {0};
+  int   lineCount;
   
-  Serial.println("\n=====from oldest for 9 lines=========================");
-  sysLog.startReading(0, 9);
-  while( (lLine = sysLog.readNextLine()) && !(lLine == "EOF")) 
-  {
-    Serial.printf("==>> %s \r\n", lLine.c_str());
-  }
+  Serial.println("testing startReading() & readNextLine() functions...");
   
-  Serial.println("\n=====from 20e for 6 lines============================");
-  sysLog.startReading(20, 6);
-  while( (lLine = sysLog.readNextLine()) && !(lLine == "EOF")) 
+  Serial.println("\n=====from oldest for n lines=========================");
+  Serial.println("sysLog.startReading()");
+  sysLog.startReading();
+  Serial.println("sysLog.readNextLine()");
+  lineCount = 0;
+  while( sysLog.readNextLine(lLine, sizeof(lLine)) )
   {
-    Serial.printf("==>> %s \r\n", lLine.c_str());
+    Serial.printf("[%3d]==>> %s \r\n", ++lineCount, lLine);
   }
-
-  Serial.println("\n=====last 12 lines===================================");
-  sysLog.startReading(-12);
-  while( (lLine = sysLog.readNextLine()) && !(lLine == "EOF")) 
+  Serial.println("\n=====from newest for n lines=========================");
+  Serial.println("sysLog.startReading()");
+  sysLog.startReading();
+  Serial.println("sysLog.readPreviousLine()");
+  lineCount = 0;
+  while( sysLog.readPreviousLine(lLine, sizeof(lLine)) )
   {
-    Serial.printf("==>> %s \r\n", lLine.c_str());
-  }
-  sysLog.setDebugLvl(0);
-  Serial.println("\n=====last 12e for 5 lines=============================");
-  sysLog.startReading(-12, 5);
-  while( (lLine = sysLog.readNextLine()) && !(lLine == "EOF")) 
-  {
-    Serial.printf("==>> %s \r\n", lLine.c_str());
-  }
-/**  
-  Serial.println("\n=====from oldest to 100nt============================");
-  sysLog.startReading(0, 100);
-  while( (lLine = sysLog.readNextLine()) && !(lLine == "EOF")) 
-  {
-    Serial.printf("==>> %s \r\n", lLine.c_str());
+    Serial.printf("[%3d]==>> %s \r\n", ++lineCount, lLine);
   }
   
-  Serial.println("\n=====from 60e to 100nt===============================");
-  sysLog.startReading(60, 100);
-  while( (lLine = sysLog.readNextLine()) && !(lLine == "EOF")) 
-  {
-    Serial.printf("==>> %s \r\n", lLine.c_str());
-  }
-**/
-
-  Serial.println("\n=====from oldest to end==============================");
-  sysLog.startReading(0, 0);  
-  while( (lLine = sysLog.readNextLine()) && !(lLine == "EOF")) 
-  {
-    Serial.printf("==>> %s \r\n", lLine.c_str());
-  }
-
   Serial.println("\nDone testing readNext()\n");
 
 } // testReadNext()
 
+
+//-------------------------------------------------------------------------
+void dumpSysLog() 
+{
+  int seekVal = 0, len = 0;
+  char cIn;
+  
+  File sl = LittleFS.open("/sysLog.dat", "r");
+  Serial.println("\r\n===charDump=============================");
+  Serial.printf("%4d [", 0);
+  while(sl.available())
+  {
+    cIn = (char)sl.read();
+    len++;
+    seekVal++;
+    if (cIn == '\n') 
+    {
+      Serial.printf("] (len [%d])\r\n", len);
+      len = 0;
+      Serial.printf("%4d [", seekVal);
+    }
+    else  Serial.print(cIn);
+  }
+  sl.close();
+  Serial.println("\r\n========================================\r\n");
+
+} //  dumpSysLog()
 
 //-------------------------------------------------------------------------
 void setup() 
@@ -172,45 +189,44 @@ void setup()
 
 #if defined(ESP8266)
   {
-    SPIFFS.begin();
+    _FSYS.begin();
   }
 #else
   {
-    SPIFFS.begin(true);
+    _FSYS.begin(true);
   }
 #endif
-   listSPIFFS();
-
-  sysLog.setDebugLvl(5);
+  sysLog.setOutput(&Serial, 115200);
+  sysLog.setDebugLvl(1);
 
   //--> max linesize is declared by _MAXLINEWIDTH in the
   //    library and is set @150, so 160 will be truncated to 150!
+  //--> min linesize is set to @50
   //-----------------------------------------------------------------
-  //if (!sysLog.begin(95, 160, true)) {   // create new sysLog file
-  if (!sysLog.begin(95, 160)) {         // use existing sysLog file
-    Serial.println("Error opening sysLog!");
-    delay(10000);
+  // use existing sysLog file or create one
+  if (!sysLog.begin(33, 60))     
+  {   
+    Serial.println("Error opening sysLog!\r\nCreated sysLog!");
+    delay(5000);
   }
   sysLog.setDebugLvl(0);
   sysLog.status();
+  testReadnext();
 
-#if defined(ESP32)
-  Serial.println("just started ..");
-  sysLog.write("--------------------------------------------------------------------------------------------");
-  writeToSysLog("Just Started [%d]", (sysLog.getLastLineID() +1));
-#else
-  Serial.printf("Reset Reason [%s]\r\n", ESP.getResetReason().c_str());
-  sysLog.write("--------------------------------------------------------------------------------------------");
-  writeToSysLog("Reset Reason [%s]", ESP.getResetReason().c_str());
-#endif
-
+  Serial.println("Fill with 10 lines ..");
+  for(number=0; number<10; number++)
+  {
+    sysLog.writef("-----------[ %04d ]-----------------------------", number);
+    //writeToSysLog("Just Started [%d]", (sysLog.getLastLineID() +1));
+  }
+  
   sysLog.setDebugLvl(0);
   sysLog.status();
   
   showBareLogFile();
 
   Serial.println("\nsetup() done .. \n");
-  delay(5000);
+  delay(1000);
   
 } // setup()
 
@@ -218,41 +234,17 @@ void setup()
 //-------------------------------------------------------------------------
 void loop() 
 {
-  static uint8_t lineCount = 0;
+  sysLog.status();
 
-  lineCount++;
-  String dLine = "***********************************************************************************";
-  String sLine;
-  sLine = dLine.substring(0, lineCount);  
-  if (lineCount < 10) 
-  {   
-    writeToSysLog("Regel [@%d] %s", (sysLog.getLastLineID() +1), sLine.c_str());
-    writeToSysLog("Regel [@%d]",    (sysLog.getLastLineID() +1));
-  }
-  else
-  {
-    writeToSysLog("LineCount is now [%d] @ID[%d]", lineCount++, (sysLog.getLastLineID() +1));
-    sysLog.writef("plain writef() LineCount is now [%d] @ID[%d]", lineCount++, (sysLog.getLastLineID() +1));
-    sysLog.writef("no DebugInfo   LineCount is now [%d] @ID[%d]", lineCount++, (sysLog.getLastLineID() +1));
-  }
+  dumpSysLog();
 
-  if (lineCount > 20) 
+  testReadnext();
+  delay(10000);
+  Serial.println("Fill with 10 more lines ..");
+  for(int n=0; n<10; n++)
   {
-    Serial.println("\n");
-    sysLog.write("plain ESPSL::write() Simple log text");
-    listSPIFFS();
-    Serial.println("==========================================");
-    sysLog.status();
-    testReadnext();
-  }
-  if (lineCount > 20) 
-  {
-    while (lineCount > 1) 
-    {
-      delay(1000);
-      digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
-      lineCount--;
-    }
+    sysLog.writef("-----------[ %04d ]-----------------------------", number++);
+    //writeToSysLog("Just Started [%d]", (sysLog.getLastLineID() +1));
   }
   
 } // loop()

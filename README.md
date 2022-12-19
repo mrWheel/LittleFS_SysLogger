@@ -1,9 +1,7 @@
-# LittleFS_SysLogger
+# ESP_SysLogger
 A system Logger Library for the ESP micro controller chips
 
-# WORK IN PROGRESS
-### NOT EVERYTHING IS WORKING AT THE MOMENT!
-### WORKING ON IT
+The footprint is about 40k of program storage space and 2.4k of dynamic memory.
 
 ## setup your code
 
@@ -18,7 +16,7 @@ ESPSL sysLog;
 ```
 In `setup()` add the following code to create or open a log file of 100 lines, 80 chars/line
 ```
-   LittleFS.begin();
+   SPIFFS.begin();
    .
    .
    if (!sysLog.begin(100, 80)) {
@@ -34,20 +32,26 @@ or
 ```
    sysLog.writef("This is line [%d] of [%s]", __LINE__, __FUNCTION__);
 ```
-To display the sytem log file you first have to tell the LittleFS_SysLogger where to start
-and how many lines you want to see
+To display the sytem log file you first have to tell the LittleFS_SysLogger
+to start reading:
 ```
+   char lLine[100] = {0};
    Serial.println("\n=====from oldest to end==============================");
-   sysLog.startReading(0, 0);
-   while( (lLine = sysLog.readNextLine()) && !(lLine == "EOF")) {
+   sysLog.startReading();
+   while( sysLog.readNextLine(lLine, sizeof(lLine)) )
+   {
      Serial.printf("==>> [%s]\r\n", lLine.c_str());
    }
 ```
-or just the last 15 lines
+
+To display the sytem log file in reversed order you first have to tell the LittleFS_SysLogger
+to start reading:
 ```
-   Serial.println("\n=====last 15 lines==============================");
-   sysLog.startReading(-15);
-   while( (lLine = sysLog.readNextLine()) && !(lLine == "EOF")) {
+   char lLine[100] = {0};
+   Serial.println("\n=====from end to oldest==============================");
+   sysLog.startReading();
+   while( sysLog.readPreviousLine(lLine, sizeof(lLine)) )
+   {
      Serial.printf("==>> [%s]\r\n", lLine.c_str());
    }
 ```
@@ -158,20 +162,11 @@ method.
 Return char\*. 
 
 
-#### ESPSL::startReading(int16_t startLine, uint8_t numLines)
+#### ESPSL::startReading()
 Sets the read pointer to **startLine** and the end pointer to
 **startLine** + **numLines**.
 <br>
-This method should be called before using **readNextLine()**.
-<br>
-Return boolean. **true** if succeeded, otherwise **false**
-
-
-#### ESPSL::startReading(int16_t startLine)
-Sets the read pointer to **startLine**. If **startLine** is a negative
-number the read pointer will be set to **startLine** lines before **EOF**.
-<br>
-This method should be called before using **readNextLine()**.
+This method should be called before using **readNextLine()** or **readPreviousLine()**.
 <br>
 Return boolean. **true** if succeeded, otherwise **false**
 
@@ -179,7 +174,13 @@ Return boolean. **true** if succeeded, otherwise **false**
 #### ESPSL::readNextLine()
 Reads the next line from the system logfile and advances the read pointer one line.
 <br>
-Return String. Returns the next log line or **EOF**
+Return bool. **true** if more records available, otherwise **false**.
+
+
+#### ESPSL::readPreviousLine()
+Reads the previous line from the system logfile and advances the read pointer one line.
+<br>
+Return bool. **true** if more records available, otherwise **false**.
 
 
 #### ESPSL::dumpLogFile()
@@ -196,7 +197,7 @@ Return boolean. **true** if succeeded, otherwise **false**
 
 
 #### ESPSL::getLastLineID()
-Internaly the LittleFS_SysLogger uses sequential **lineID**'s to uniquely
+Internaly the ESP_SysLogger uses sequential **lineID**'s to uniquely
 identify each log line in the file. With this method you can query
 the last used **lineID**.
 <br>
@@ -204,7 +205,7 @@ Return uint32_t. Last used **lineID**.
 
 
 #### ESPSL::setDebugLvl(int8_t debugLvl)
-If **_DODEBUG** is defines in the **LittleFS_SysLogger.h** file you can use this
+If **_DODEBUG** is defines in the **ESP_SysLogger.h** file you can use this
 method to set the debug level to display specific Debug lines to **Serial**.
 
 

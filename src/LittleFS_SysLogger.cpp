@@ -1,7 +1,7 @@
 /***************************************************************************
 **  Program   : LittleFS_SysLogger.cpp
 **
-**  Version   : 2.0.1   (18-12-2022)
+**  Version   : 2.0.1   (19-12-2022)
 **
 **  Copyright (c) 2022 .. 2023 Willem Aandewiel
 **
@@ -27,7 +27,7 @@ boolean ESPSL::begin(uint16_t depth, uint16_t lineWidth)
   uint32_t  tmpID, recKey;
   
 #ifdef _DODEBUG
-  if (_Debug(1)) printf("ESPSL::begin(%d, %d)..\n", depth, lineWidth);
+  if (_Debug(1)) printf("ESPSL(%d)::begin(%d, %d)..\n", __LINE__, depth, lineWidth);
 #endif
 
   int16_t fileSize;
@@ -39,7 +39,12 @@ boolean ESPSL::begin(uint16_t depth, uint16_t lineWidth)
   //-- check if the file exists ---
   if (!LittleFS.exists(_sysLogFile)) 
   {
-    create(depth, lineWidth);
+    printf("ESPSL(%d)::begin(%d, %d) %s does not exist..\n", __LINE__, depth, lineWidth, _sysLogFile);
+    if (create(depth, lineWidth))
+    {
+      _numLines   = depth;
+      _lineWidth  = lineWidth;
+    }
   }
   
   //-- check if the file can be opened ---
@@ -63,31 +68,41 @@ boolean ESPSL::begin(uint16_t depth, uint16_t lineWidth)
     }
 
     int l = _sysLog.readBytesUntil('\n', globalBuff, _MAXLINEWIDTH) -1; 
+        //printf("ESPSL(%d)::begin(): rec[0] [%s]\r\n", __LINE__, globalBuff);
 
 #ifdef _DODEBUG
         if (_Debug(4)) printf("ESPSL(%d)::begin(): rec[0] [%s]\r\n", __LINE__, globalBuff);
 #endif
-        sscanf(globalBuff,"%u|%u;%d;%d;" 
+        sscanf(globalBuff,"%u|%d;%d;%d;" 
                                 , &recKey
                                 , &tmpID
-                                , &_noLines
+                                , &_numLines
                                 , &_lineWidth);
+     //printf("ESPSL(%d)::begin(): rec[%d] numLines[%d], lineWidth[%d]\r\n", __LINE__
+     //                                                                       , recKey
+     //                                                                       , _numLines
+     //                                                                       , _lineWidth);
     Serial.flush();
-    if (_noLines    < _MINNUMLINES)  { _noLines    = _MINNUMLINES; }
+    if (_numLines   < _MINNUMLINES)  { _numLines   = _MINNUMLINES; }
     if (_lineWidth  < _MINLINEWIDTH) { _lineWidth  = _MINLINEWIDTH; }
     _recLength = _lineWidth + _KEYLEN;
-    if (tmpID > _lastUsedLineID) { _lastUsedLineID = tmpID; }
+    //if (tmpID > _lastUsedLineID) { _lastUsedLineID = tmpID; }
 #ifdef _DODEBUG
     if (_Debug(4)) printf("ESPSL(%d)::begin(): rec[%u] -> [%8d][%d][%d]\r\n", __LINE__
                                                                                 , recKey
                                                                                 , _lastUsedLineID
-                                                                                , _noLines
+                                                                                , _numLines
                                                                                 , _lineWidth);
 #endif
   } 
   
-  if ((depth != _noLines) || lineWidth != _lineWidth)
+  if ((depth != _numLines) || lineWidth != _lineWidth)
   {
+    if (_Debug(1)) printf("ESPSL(%d)::begin(): (depth[%d] != numLines[%d]) || (lineWidth[%d] != _lineWidth[%d])\r\n", __LINE__
+                                              , depth
+                                              , _numLines
+                                              , lineWidth
+                                              , _lineWidth);
     _sysLog.close();
     removeSysLog();
     create(depth, lineWidth);
@@ -102,11 +117,11 @@ boolean ESPSL::begin(uint16_t depth, uint16_t lineWidth)
   
   memset(globalBuff, 0, sizeof(globalBuff));
   
-  checkSysLogFileSize("begin():", (_noLines + 1) * (_recLength +1));  //-- add '\n'
+  checkSysLogFileSize("begin():", (_numLines + 1) * (_recLength +1));  //-- add '\n'
   
-  if (_noLines != depth) 
+  if (_numLines != depth) 
   {
-    printf("ESPSL(%d)::begin(): lines in file (%d) <> %d !!\r\n", __LINE__, _noLines, depth);
+    printf("ESPSL(%d)::begin(): lines in file (%d) <> %d !!\r\n", __LINE__, _numLines, depth);
   }
   if (_lineWidth != lineWidth)
   {
@@ -114,7 +129,7 @@ boolean ESPSL::begin(uint16_t depth, uint16_t lineWidth)
   }
 
   init();
-  printf("ESPSL(%d):: after init()\r\n", __LINE__);
+  //printf("ESPSL(%d):: after init() -> _lastUsedLineID[%d]\r\n", __LINE__, _lastUsedLineID);
 
   return true; // We're all setup!
   
@@ -125,14 +140,16 @@ boolean ESPSL::begin(uint16_t depth, uint16_t lineWidth)
 boolean ESPSL::begin(uint16_t depth, uint16_t lineWidth, boolean mode) 
 {
 #ifdef _DODEBUG
-  if (_Debug(1)) printf("ESPSL::begin(%d, %d, %d)..\n", depth, lineWidth, mode);
+  if (_Debug(1)) printf("ESPSL(%s)::begin(%d, %d, %s)..\n", __LINE__, depth, lineWidth, (mode? "CREATE":"KEEP"));
 #endif
-
+  _numLines   = depth;
+  _lineWidth  = lineWidth;
+  
   if (mode) 
   {
     _sysLog.close();
     removeSysLog();
-    create(depth, lineWidth);
+    create(_numLines, _lineWidth);
   }
   return (begin(depth, lineWidth));
   
@@ -150,14 +167,14 @@ boolean ESPSL::create(uint16_t depth, uint16_t lineWidth)
 
   int32_t bytesWritten;
   
-  _noLines  = depth;
+  _numLines   = depth;
   if (lineWidth > _MAXLINEWIDTH)
-          _lineWidth  = _MAXLINEWIDTH;
+          lineWidth  = _MAXLINEWIDTH;
   else if (lineWidth < _MINLINEWIDTH) 
-          _lineWidth  = _MINLINEWIDTH;
-  else    _lineWidth  = lineWidth;
+          lineWidth  = _MINLINEWIDTH;
+  _lineWidth  = lineWidth;
   
-  _recLength = _lineWidth + _KEYLEN;
+  _recLength  = _lineWidth + _KEYLEN;
 
   //_nextFree = 0;
   memset(globalBuff, 0, sizeof(globalBuff));  
@@ -171,10 +188,12 @@ boolean ESPSL::create(uint16_t depth, uint16_t lineWidth)
   } //-- if (!_sysLog)
 
 
-  snprintf(globalBuff, _lineWidth, "%08d;%d;%d; META DATA LittleFS_SysLogger", 0, _noLines, _lineWidth);
+  snprintf(globalBuff, _lineWidth, "%08d;%d;%d; META DATA LittleFS_SysLogger", 0, _numLines, _lineWidth);
   fixLineWidth(globalBuff, _lineWidth);
   fixRecLen(globalBuff, 0, _recLength);
+#ifdef _DODEBUG
   if (_Debug(1)) printf("ESPSL(%d)::create(): rec(0) [%s](%d bytes)\r\n", __LINE__, globalBuff, strlen(globalBuff));
+#endif
   bytesWritten = createFile.println(globalBuff) -1; //-- skip '\n'
   createFile.flush();
   if (bytesWritten != _recLength) 
@@ -187,12 +206,13 @@ boolean ESPSL::create(uint16_t depth, uint16_t lineWidth)
   }
   
   int r;
-  for (r=0; r < _noLines; r++) 
+  for (r=0; r < _numLines; r++) 
   {
     yield();
-    snprintf(globalBuff, _lineWidth, "%08d; === empty log regel (%d) ===", -1, (r+1));
+    snprintf(globalBuff, _lineWidth, "=== empty log regel (%d) ========================================================================================", (r+1));
     fixLineWidth(globalBuff, _lineWidth);
-    fixRecLen(globalBuff, r, _recLength);
+    fixRecLen(globalBuff, (_EMPTYID *1), _recLength);
+    //printf("ESPSL(%d)::create(): rec(%d) [%s](%d bytes)\r\n", __LINE__, r, globalBuff, strlen(globalBuff));
     bytesWritten = createFile.println(globalBuff) -1; //-- skip '\n'
     if (bytesWritten != _recLength) 
     {
@@ -205,9 +225,11 @@ boolean ESPSL::create(uint16_t depth, uint16_t lineWidth)
   } //-- for r ....
   
   createFile.close();
-  _lastUsedLineID = 0;
-  _oldestLineID   = 1;
-  return (true);
+  
+  _lastUsedLineID = 1;
+  _oldestLineID   = 0;
+
+    return true;
   
 } // create()
 
@@ -231,69 +253,41 @@ boolean ESPSL::init()
   } //-- if (!_sysLog)
 
   _oldestLineID   = 0;
-  _lastUsedLineID = 0;
+  _lastUsedLineID = 1;
   recKey          = 0;
 
   while (_sysLog.available() > 0) 
   {
     recKey++;
-    //printf("ESPSL(%d)::init(): available() -> recKey[%d]..", __LINE__, recKey);
     offset = (recKey * (_recLength +1)); 
     if (!_sysLog.seek(offset, SeekSet)) 
     {
       printf("ESPSL(%d)::init(): seek to position [%d/%04d] failed (now @%d)\r\n", __LINE__, recKey
                                                                                   , offset
                                                                                   , _sysLog.position());
-      //_sysLog.close();
       return false;
     }
 #ifdef _DODEBUG
     if (_Debug(4)) printf("ESPSL(%d)::init(): -> read record (recKey) [%d/%04d]\r\n", __LINE__, recKey, offset);
 #endif
     int l = _sysLog.readBytesUntil('\n', globalBuff, _recLength);
-        sscanf(globalBuff,"%u|%u;[^\0]" , &readKey, &_oldestLineID, logText);
-    if (_oldestLineID > 0)
-    {
-      if (_oldestLineID >= _lastUsedLineID) { _lastUsedLineID = (_oldestLineID -1); }
-    }
-    //_sysLog.close();
+        sscanf(globalBuff,"%u|%[^\0]" , &_oldestLineID, logText);
+        if (_oldestLineID > 0)
+        {
+          if (_oldestLineID >= _lastUsedLineID) { _lastUsedLineID = (_oldestLineID -1); }
+        }
     
 #ifdef _DODEBUG
-    if (_Debug(4)) printf("ESPSL(%d)::init(): testing readKey[%07u] -> [%08d][%s]\r\n", __LINE__
-                                                                                , readKey
+    if (_Debug(4)) printf("ESPSL(%d)::init(): testing readKey[%010u] -> [%08d][%s]\r\n", __LINE__
+                                                                                , _oldestLineID
                                                                                 , logText);
 #endif
-/***
-    if (_oldestLineID < _lastUsedLineID) 
-    {
-#ifdef _DODEBUG
-      if (_Debug(4)) printf("ESPSL(%d)::init(): ----> readKey[%07d] _oldest[%8d] _lastUsed[%8d]\r\n"
-                                                      , __LINE__
-                                                      , readKey
-                                                      , _oldestLineID
-                                                      , _lastUsedLineID);
-#endif
-      return true; 
-    }
-    else if (readKey >= _noLines) 
-    {
-      _lastUsedLineID++;
-      _oldestLineID = (_lastUsedLineID - _noLines) +1;
-#ifdef _DODEBUG
-      if (_Debug(3)) printf("ESPSL(%d)::init(eof): -> readKey[%07d] _oldest[%8d] _lastUsed[%8d]\r\n"
-                                                      , __LINE__
-                                                      , readKey
-                                                      , _oldestLineID
-                                                      , _lastUsedLineID);
-#endif
-      return true; 
-    }
-    _lastUsedLineID = _oldestLineID;
-    yield();
-**/
   } //-- while ..
-  if (_lastUsedLineID < 0) { _lastUsedLineID = 1; }
+  
+  if (_lastUsedLineID <= 1) { _lastUsedLineID = 1; }
   _oldestLineID = _lastUsedLineID +1;
+  //printf("ESPSL(%d):: init() -> _lastUsedLineID[%d] _oldestLineID[%d]\r\n", __LINE__, _lastUsedLineID, _oldestLineID);
+
   return false;
 
 } // init()
@@ -323,11 +317,11 @@ boolean ESPSL::write(const char* logLine)
   char lineBuff[(_recLength + _KEYLEN +1)];
   memset(globalBuff, 0, (_recLength + _KEYLEN + 1));
 
-  snprintf(globalBuff, _lineWidth, "%08d;%s", _oldestLineID, logLine);
+  snprintf(globalBuff, _lineWidth, "%s", logLine);
   fixLineWidth(globalBuff, _lineWidth); 
   _lastUsedLineID++;
   fixRecLen(globalBuff, _lastUsedLineID, _recLength);
-  seekToLine = (_lastUsedLineID % _noLines) +1; //-- always skip rec. 0 (status rec)
+  seekToLine = (_lastUsedLineID % _numLines) +1; //-- always skip rec. 0 (status rec)
   offset = (seekToLine * (_recLength +1));
 #ifdef _DODEBUG
   if (_Debug(4)) printf("ESPSL(%d)::write() -> slot[%d], seek[%d/%04d] [%s]\r\n", __LINE__
@@ -355,7 +349,7 @@ boolean ESPSL::write(const char* logLine)
   }
 
   _oldestLineID = _lastUsedLineID +1; //-- 1 after last
-  nextFree = (_lastUsedLineID % _noLines) + 1;  //-- always skip rec "0"
+  nextFree = (_lastUsedLineID % _numLines) + 1;  //-- always skip rec "0"
 
   return true;
 
@@ -368,7 +362,7 @@ boolean ESPSL::writef(const char *fmt, ...)
   char lineBuff[(_MAXLINEWIDTH + 101)];
   memset(lineBuff, 0, (_MAXLINEWIDTH + 101));
 
-  #ifdef _DODEBUG
+#ifdef _DODEBUG
   if (_Debug(3)) printf("ESPSL(%d)::writef(%s)..\r\n", __LINE__, fmt);
 #endif
 
@@ -460,87 +454,45 @@ char *ESPSL::buildD(const char *fmt, ...)
 
 //-------------------------------------------------------------------------------------
 //-- set pointer to startLine
-void ESPSL::startReading(int16_t startLine, int16_t numLines) 
+void ESPSL::startReading() 
 {
+  _readNext         = _lastUsedLineID +1;
+  _readNextEnd      = _readNext + _numLines;
+  _readPrevious     = _lastUsedLineID;
+  _readPreviousEnd  = _readPrevious - _numLines;
+  if (_readPreviousEnd < 0) { _readPreviousEnd = 0; }
 #ifdef _DODEBUG
-  //if (_Debug(1)) 
-  printf("ESPSL(%d)::startReading([%d], [%d])..\r\n", __LINE__, startLine, numLines);
-#endif
-
-  if (startLine < 0) 
-  {
-    _readPointer     = _lastUsedLineID + startLine +numLines;
-    printf("ESPSL(%d)::startReading(start<0): _last[%d], start[%d], _readP[%d]\r\n"
-                                              , __LINE__
-                                              , _lastUsedLineID, startLine, _readPointer);
-  }
-  else if (startLine == 0) 
-        _readPointer = _oldestLineID;
-  else 
-  {
-    _readPointer = _oldestLineID + startLine;
-    printf("ESPSL(%d)::startReading(start>0): _oldest[%d], start[%d], _readP[%d]\r\n"
-                                              , __LINE__
-                                              , _oldestLineID, startLine, _readPointer);
-  }
-  if (_readPointer > _lastUsedLineID) _readPointer = _oldestLineID;
-  if (numLines == 0)
-        _readEnd     = _lastUsedLineID;
-  else  _readEnd     = (_readPointer + numLines) -1;
-  if (_readEnd > _lastUsedLineID) _readEnd = _lastUsedLineID; 
-#ifdef _DODEBUG
-  //if (_Debug(3)) 
-  printf("ESPSL(%d)::startReading(): _readPointer[%d], readEnd[%d], _oldest[%d], _last[%d], Start[%d], End[%d]\r\n"
-                                              , __LINE__
-                                              , _readPointer
-                                              , _readEnd
-                                              , _oldestLineID
-                                              , _lastUsedLineID
-                                              , _readPointer, _readEnd);
+  if (_Debug(1)) printf("ESPSL(%d)::startReading()..next[%d] to [%d]\r\n", __LINE__, _readNext, _readNextEnd);
+  if (_Debug(1)) printf("ESPSL(%d)::startReading()..prev[%d] to [%d]\r\n", __LINE__, _readPrevious, _readPreviousEnd);
 #endif
 
 } // startReading()
 
-
 //-------------------------------------------------------------------------------------
-//-- set pointer to startLine
-void ESPSL::startReading(int16_t startLine) 
-{
-#ifdef _DODEBUG
-  //if (_Debug(1)) 
-  printf("ESPSL(%d)::startReading([%d])..\r\n", __LINE__, startLine);
-#endif
-  startReading(startLine, 0);
-
-} // startReading()
-
-//-------------------------------------------------------------------------------------
-//-- start reading from startLine
+//-- start reading from _readNext
 bool ESPSL::readNextLine(char *lineOut, int lineOutLen)
 {
   uint32_t  offset;
-  int32_t   dummyKey, recKey = _readPointer;
+  int32_t   recKey = _readNext;
   int32_t   lineID;
   uint16_t  seekToLine;  
-  File      tmpFile;
   char      lineIn[_recLength];
   
 #ifdef _DODEBUG
-  if (_Debug(1)) printf("ESPSL(%d)::readNextLine(%d) _recLength[%d]\r\n", __LINE__, _readPointer, _recLength);
+  if (_Debug(1)) printf("ESPSL(%d)::readNextLine(%d)\r\n", __LINE__, _readNext);
 #endif
   memset(globalBuff, 0, (_recLength+10));
   memset(lineIn, 0, _recLength);
 
-  if (_readPointer > _readEnd) return false;
+  if (_readNext >= _readNextEnd) return false;
   
   if (!_sysLog)
   {
     printf("ESPSL(%d)::readNextLine(): _sysLog (%s) not open\r\n", __LINE__, _sysLogFile);
   }
-
-  for (recKey = _readPointer; recKey <= _readEnd; recKey++) 
+  for(int r=0; r<_numLines; r++)
   {
-    seekToLine = (recKey % _noLines) +1;
+    seekToLine = ((_readNext +r) % _numLines) +1;
     offset     = (seekToLine * (_recLength +1));
     if (!_sysLog.seek(offset, SeekSet)) 
     {
@@ -552,18 +504,21 @@ bool ESPSL::readNextLine(char *lineOut, int lineOutLen)
     }
 
     int l = _sysLog.readBytesUntil('\n', globalBuff, _recLength);
-    sscanf(globalBuff,"%u|%u;%[^\0]", &dummyKey, &lineID, lineIn);     
+      sscanf(globalBuff,"%u|%[^\0]", &lineID, lineIn);     
 
 #ifdef _DODEBUG
-    if (_Debug(4)) printf("ESPSL(%d)::readNextLine(): [%5d]->recNr[%07d][%10d]-> [%s]\r\n"
+    if (_Debug(4)) printf("ESPSL(%d)::readNextLine(): [%5d]->recNr[%010d][%10d]-> [%s]\r\n"
                                                             , __LINE__
                                                             , seekToLine
-                                                            , recKey
+                                                            , _readNext
                                                             , lineID
                                                             , lineIn);
 #endif
-    _readPointer++;
-    if (lineID > _emptyID) 
+    if (lineID > -1) { _readNext += r; break; }
+    
+  } // for ..
+    _readNext++;
+    if (lineID > (int)_EMPTYID) 
     {
       strlcpy(lineOut, rtrim(lineIn), lineOutLen);
       return true;
@@ -573,32 +528,99 @@ bool ESPSL::readNextLine(char *lineOut, int lineOutLen)
       if (_Debug(4)) printf("ESPSL(%d)::readNextLine(): SKIP[%s]\r\n", __LINE__, lineIn);
 #endif
     }
-    
-  } //-- for ..
 
   return false;
 
 } //  readNextLine()
 
 //-------------------------------------------------------------------------------------
+//-- start reading from _readNext
+bool ESPSL::readPreviousLine(char *lineOut, int lineOutLen)
+{
+  uint32_t  offset;
+  int32_t   recKey = _readNext;
+  int32_t   lineID;
+  uint16_t  seekToLine;  
+  //File      tmpFile;
+  char      lineIn[_recLength];
+  
+#ifdef _DODEBUG
+  if (_Debug(1)) printf("ESPSL(%d)::readPreviousLine(%d/%d)\r\n", __LINE__, _readPrevious, _readPreviousEnd);
+#endif
+  memset(globalBuff, 0, (_recLength+10));
+  memset(lineIn, 0, _recLength);
+
+  if (_readPrevious <= _readPreviousEnd) return false;
+  
+  if (!_sysLog)
+  {
+    printf("ESPSL(%d)::readPreviousLine(): _sysLog (%s) not open\r\n", __LINE__, _sysLogFile);
+  }
+  for(int r=0; r<_numLines; r++)
+  {
+    _readPrevious -= r;
+    if (_readPrevious < 0) return false;
+    seekToLine = (_readPrevious % _numLines) +1;
+    offset     = (seekToLine * (_recLength +1));
+    if (!_sysLog.seek(offset, SeekSet)) 
+    {
+      printf("ESPSL(%d)::readPreviousLine(): seek to position [%d/%04d] failed (now @%d)\r\n", __LINE__
+                                                                                         , seekToLine
+                                                                                         , offset
+                                                                                         , _sysLog.position());
+      return true;
+    }
+
+    int l = _sysLog.readBytesUntil('\n', globalBuff, _recLength);
+        sscanf(globalBuff,"%u|%[^\0]", &lineID, lineIn);     
+
+#ifdef _DODEBUG
+    if (_Debug(4)) printf("ESPSL(%d)::readPreviousLine(): [%5d]->recNr[%010d][%10d]-> [%s]\r\n"
+                                                            , __LINE__
+                                                            , seekToLine
+                                                            , _readPrevious
+                                                            , lineID
+                                                            , lineIn);
+#endif
+    if (lineID > -1) { break; }
+    
+  } // for ..
+    
+  _readPrevious--;
+  if (lineID > (int)_EMPTYID) 
+  {
+    strlcpy(lineOut, rtrim(lineIn), lineOutLen);
+    return true;
+#ifdef _DODEBUG
+  } else 
+  {
+    if (_Debug(4)) printf("ESPSL(%d)::readPreviousLine(): SKIP[%s]\r\n", __LINE__, lineIn);
+#endif
+  }
+
+  return false;
+
+} //  readPreviousLine()
+
+//-------------------------------------------------------------------------------------
 //-- start reading from startLine
-String ESPSL::dumpLogFile() 
+bool ESPSL::dumpLogFile() 
 {
 #ifdef _DODEBUG
   if (_Debug(1)) printf("ESPSL(%d)::dumpLogFile()..\r\n", __LINE__);
 #endif
 
-  int32_t       dummyKey, recKey;
-  uint32_t      offset, seekToLine;
+  int32_t   recKey;
+  uint32_t  offset, seekToLine;
   memset(globalBuff, 0, sizeof(globalBuff));
       
   _sysLog  = LittleFS.open(_sysLogFile, "r+");    //-- open for reading and writing
 
-  checkSysLogFileSize("dumpLogFile():", (_noLines + 1) * (_recLength +1));  //-- add '\n'
+  checkSysLogFileSize("dumpLogFile():", (_numLines + 1) * (_recLength +1));  //-- add '\n'
 
-  for (recKey = 0; recKey < _noLines; recKey++) 
+  for (recKey = 0; recKey < _numLines; recKey++) 
   {
-    seekToLine = (recKey % _noLines)+1;
+    seekToLine = (recKey % _numLines)+1;
     offset = (seekToLine * (_recLength +1));
     if (!_sysLog.seek(offset, SeekSet)) 
     {
@@ -606,12 +628,14 @@ String ESPSL::dumpLogFile()
                                                                                               , seekToLine
                                                                                               , offset
                                                                                               , _sysLog.position());
-      return "ERROR";
+      return false;
     }
     uint32_t  lineID;
     int l = _sysLog.readBytesUntil('\n', globalBuff, _recLength);
+#ifdef _DODEBUG
     if (_Debug(5)) printf("ESPSL(%d)::dumpLogFile():  >>>>> [%d] -> [%s]\r\n", __LINE__, l, globalBuff);
-    sscanf(globalBuff,"%u|%u;%[^\0]", &dummyKey, &lineID, globalBuff);
+#endif
+    sscanf(globalBuff,"%u|%[^\0]", &lineID, globalBuff);
 
     if (lineID == (_lastUsedLineID)) 
     {
@@ -619,9 +643,9 @@ String ESPSL::dumpLogFile()
 
             println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
     }
-    else if (lineID == (_oldestLineID) ) //&& recKey < _noLines)
+    else if (lineID == (_oldestLineID) ) //&& recKey < _numLines)
             printf("(b)dumpLogFile(%d):: seek[%4d/%04d]ID[%8d]->[%s]\r\n", __LINE__, seekToLine, offset, lineID, globalBuff);
-    else if (lineID == _emptyID) 
+    else if (lineID == _EMPTYID) 
             printf("(c)dumpLogFile(%d):: seek[%4d/%04d]ID[%8d]->[%s]\r\n", __LINE__, seekToLine, offset, lineID, globalBuff);
     else 
     {
@@ -629,7 +653,7 @@ String ESPSL::dumpLogFile()
     }
   } //-- while ..
 
-  return "EOF";
+  return true;
 
 } // dumpLogFile
 
@@ -649,14 +673,14 @@ boolean ESPSL::removeSysLog()
 //-- returns ESPSL status info
 void ESPSL::status() 
 {
-  printf("ESPSL::status():        _noLines[%8d]\r\n", _noLines);
+  printf("ESPSL::status():       _numLines[%8d]\r\n", _numLines);
   printf("ESPSL::status():      _lineWidth[%8d]\r\n", _lineWidth);
-  if (_noLines > 0) 
+  if (_numLines > 0) 
   {
     printf("ESPSL::status():   _oldestLineID[%8d] (%2d)\r\n", _oldestLineID
-                                                           , (_oldestLineID % _noLines)+1);
+                                                           , (_oldestLineID % _numLines)+1);
     printf("ESPSL::status(): _lastUsedLineID[%8d] (%2d)\r\n", _lastUsedLineID
-                                                           , (_lastUsedLineID % _noLines)+1);
+                                                           , (_lastUsedLineID % _numLines)+1);
   }
   printf("ESPSL::status():       _debugLvl[%8d]\r\n", _debugLvl);
   
@@ -812,7 +836,9 @@ void ESPSL::fixLineWidth(char *inLine, int lineLen)
   snprintf(fixLine, lineLen, "%s", inLine);
   //printf("ESPSL(%d)::fixLineWidth(): fixLine[%s]\r\n", __LINE__, fixLine);
 
+#ifdef _DODEBUG
   if (_Debug(3)) printf("ESPSL(%d):: [%s]\r\n", __LINE__, fixLine);
+#endif
   //-- first: remove control chars
   for(int i=0; i<strlen(fixLine); i++)
   {
@@ -846,12 +872,12 @@ void ESPSL::fixRecLen(char *recIn, int32_t recKey, int recLen)
   int newLen;
   
 #ifdef _DODEBUG
-  if (_Debug(4)) printf("ESPSL(%d)::fixRecLen([%s], %u, %d) ..\r\n", __LINE__, recIn, recKey, recLen);
+  if (_Debug(4)) printf("ESPSL(%d)::fixRecLen([%s], %d, %d) ..\r\n", __LINE__, recIn, recKey, recLen);
 #endif
   char recOut[(recLen+1)];
   memset(recOut, 0, (recLen+1));
 
-  snprintf(recOut, recLen, "%07u|%s", recKey, recIn);
+  snprintf(recOut, recLen, "%010d|%s", recKey, recIn);
 #ifdef _DODEBUG
   if (_Debug(3)) printf("ESPSL(%d):: [%s]\r\n", __LINE__, recOut);
 #endif
@@ -862,7 +888,7 @@ void ESPSL::fixRecLen(char *recIn, int32_t recKey, int recLen)
   } while(newLen < (recLen-1));
   
 #ifdef _DODEBUG
-  if (_Debug(3)) printf("ESPSL(%d):: [%s]\r\n", __LINE__, recOut);
+  if (_Debug(3)) printf("ESPSL(%d):: [%d]->[%-20.20s]\r\n", __LINE__, recKey, recOut);
 #endif
 
   strlcpy(recIn, recOut, recLen);
@@ -871,7 +897,7 @@ void ESPSL::fixRecLen(char *recIn, int32_t recKey, int recLen)
   if (_Debug(4)) printf("ESPSL(%d)::fixRecLen(): Length of record is [%d] bytes\r\n", __LINE__, strlen(recIn));
 #endif
   
-  //printf("ESPSL(%d):: record[%s]\r\n", __LINE__, recIn);
+  //printf("ESPSL(%d):: record(%010d)->[%s]\r\n", __LINE__, recKey, recIn);
   
 } // fixRecLen()
 
