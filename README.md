@@ -187,11 +187,11 @@ Return bool. **true** if more records available, otherwise **false**.
 This method is for debugging. It display's all the lines in the
 system logfile to **Serial**.
 <br>
-Return String. Returns **EOF**
+Return boolean. **true** if succeeded, otherwise **false**
 
 
 #### ESPSL::removeSysLog()
-This methos removes a system logfile from SPIFFS.
+This methos removes a system logfile from LittleFS.
 <br>
 Return boolean. **true** if succeeded, otherwise **false**
 
