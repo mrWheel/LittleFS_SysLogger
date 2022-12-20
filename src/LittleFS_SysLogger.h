@@ -8,8 +8,8 @@
 **  TERMS OF USE: MIT License. See bottom of file.
 ***************************************************************************/
 
-#ifndef _LITTLEFS_SYSLOGGER_H
-#define _LITTLEFS_SYSLOGGER_H
+#ifndef _ESP2_SYSLOGGER_H
+#define _ESP2_SYSLOGGER_H
 
 #include <FS.h>
 #include <LittleFS.h>

@@ -1,7 +1,8 @@
-# ESP_SysLogger
-A system Logger Library for the ESP micro controller chips
+# LittleFS_SysLogger
+A system Logger Library for the ESP micro controller chips with LittleFS
 
-The footprint is about 40k of program storage space and 2.4k of dynamic memory.
+***There is also a version for SPIFFS (SPIFFS_SysLogger)***
+
 
 ## setup your code
 

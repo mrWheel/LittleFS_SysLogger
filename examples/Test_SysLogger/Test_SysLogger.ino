@@ -10,16 +10,9 @@
 
 #include <TimeLib.h>            // https://github.com/PaulStoffregen/Time
 
-#define _LITTLEFS
-//#define _SPIFFS
-#ifdef _SPIFFS
-  #include "SPIFFS_SysLogger.h"
-  #define _FSYS SPIFFS
-#endif
-#ifdef _LITTLEFS
-  #include "LittleFS_SysLogger.h"
-  #define _FSYS LittleFS
-#endif
+#include "LittleFS_SysLogger.h"
+#define _FSYS LittleFS
+
 ESPSL sysLog;                   // Create instance of the ESPSL object
 
 /*
@@ -52,6 +45,7 @@ uint32_t  number = 0;
 void listFileSys(bool doSysLog)
 {
   Serial.println("===============================================================");
+
 #if defined(ESP8266)
   {
   Dir dir = _FSYS.openDir("/");         // List files on LittleFS

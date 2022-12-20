@@ -905,7 +905,7 @@ void ESPSL::fixRecLen(char *recIn, int32_t recKey, int recLen)
 //===========================================================================================
 int32_t  ESPSL::sysLogFileSize()
 {
-/**
+#if defined(ESP8266)
   {
     Dir dir = LittleFS.openDir("/");         // List files on LittleFS
     while (dir.next())  {
@@ -922,15 +922,14 @@ int32_t  ESPSL::sysLogFileSize()
 #ifdef _DODEBUG
             if (_Debug(6)) printf("ESPSL(%d)::sysLogFileSize(): fileSize[%d]\r\n", __LINE__, fileSize);
 #endif
-            dir.close();
+            //dir.close();
             return (int32_t)fileSize;
           }
     }
-  dir.close();
+  //dir.close();
   return 0;
   }
 #else
-**/
   {
       File root = LittleFS.open("/");
       File file = root.openNextFile();
@@ -954,9 +953,8 @@ int32_t  ESPSL::sysLogFileSize()
       }
       return 0;
   }
-/**
+
 #endif
-**/
 
 } // sysLogFileSize()
 
