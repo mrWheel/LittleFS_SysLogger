@@ -32,7 +32,7 @@ or
 ```
    sysLog.writef("This is line [%d] of [%s]", __LINE__, __FUNCTION__);
 ```
-To display the sytem log file you first have to tell the LittleFS_SysLogger
+To read the sytem log file you first have to tell the LittleFS_SysLogger
 to start reading:
 ```
    char lLine[100] = {0};
@@ -44,7 +44,7 @@ to start reading:
    }
 ```
 
-To display the sytem log file in reversed order you first have to tell the LittleFS_SysLogger
+To read the sytem log file in reversed order you first have to tell the LittleFS_SysLogger
 to start reading:
 ```
    char lLine[100] = {0};
