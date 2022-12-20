@@ -1,7 +1,7 @@
 /***************************************************************************
 **  Program   : LittleFS_SysLogger.cpp
 **
-**  Version   : 2.0.1   (19-12-2022)
+**  Version   : 2.0.1   (20-12-2022)
 **
 **  Copyright (c) 2022 .. 2023 Willem Aandewiel
 **
@@ -253,7 +253,7 @@ boolean ESPSL::init()
   } //-- if (!_sysLog)
 
   _oldestLineID   = 0;
-  _lastUsedLineID = 1;
+  _lastUsedLineID = 0;
   recKey          = 0;
 
   while (_sysLog.available() > 0) 
@@ -274,7 +274,8 @@ boolean ESPSL::init()
         sscanf(globalBuff,"%u|%[^\0]" , &_oldestLineID, logText);
         if (_oldestLineID > 0)
         {
-          if (_oldestLineID >= _lastUsedLineID) { _lastUsedLineID = (_oldestLineID -1); }
+          if (_oldestLineID >= _lastUsedLineID) { _lastUsedLineID = _oldestLineID; }
+          //printf("ESPSL(%d):: init() -> _lastUsedLineID[%d] _oldestLineID[%d]\r\n", __LINE__, _lastUsedLineID, _oldestLineID);
         }
     
 #ifdef _DODEBUG
@@ -284,9 +285,9 @@ boolean ESPSL::init()
 #endif
   } //-- while ..
   
-  if (_lastUsedLineID <= 1) { _lastUsedLineID = 1; }
+  if (_lastUsedLineID <= 0) { _lastUsedLineID = 0; }
   _oldestLineID = _lastUsedLineID +1;
-  //printf("ESPSL(%d):: init() -> _lastUsedLineID[%d] _oldestLineID[%d]\r\n", __LINE__, _lastUsedLineID, _oldestLineID);
+  //printf("ESPSL(%d):: init() => _lastUsedLineID[%d] _oldestLineID[%d]\r\n", __LINE__, _lastUsedLineID, _oldestLineID);
 
   return false;
 

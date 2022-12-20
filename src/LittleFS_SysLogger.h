@@ -1,7 +1,7 @@
 /*
 **  Program   : LittleFS_SysLogger.h
 **
-**  Version   : 2.0.1   (19-12-2022)
+**  Version   : 2.0.1   (20-12-2022)
 **
 **  Copyright (c) 2022 .. 2023 Willem Aandewiel
 **

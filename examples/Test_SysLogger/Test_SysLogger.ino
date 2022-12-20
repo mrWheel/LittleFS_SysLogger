@@ -1,7 +1,7 @@
 /*
 **  Program   : ESP_SysLogger
 */
-#define _FW_VERSION "v2.0.1 (19-12-2019)"
+#define _FW_VERSION "v2.0.1 (20-12-2019)"
 /*
 **  Copyright (c) 2019 .. 2023 Willem Aandewiel
 **
@@ -204,6 +204,7 @@ void setup()
   //--> min linesize is set to @50
   //-----------------------------------------------------------------
   // use existing sysLog file or create one
+  //sysLog.removeSysLog();
   if (!sysLog.begin(27, 60))     
   {   
     Serial.println("Error opening sysLog!\r\nCreated sysLog!");
@@ -213,13 +214,14 @@ void setup()
   sysLog.status();
   testReadnext();
 
+  int strtId = sysLog.getLastLineID();
   Serial.println("Fill with 10 lines ..");
   for(number=0; number<10; number++)
   {
-    sysLog.writef("-----------[ %04d ]-----------------------------", number);
+    sysLog.writef("-----[ %07d ]------[ %04d ]-----------------------------", strtId, (number+strtId));
     //writeToSysLog("Just Started [%d]", (sysLog.getLastLineID() +1));
   }
-  
+
   sysLog.setDebugLvl(0);
   sysLog.status();
   
@@ -240,13 +242,15 @@ void loop()
 
   testReadnext();
   delay(10000);
-  Serial.println("Fill with 10 more lines ..");
-  for(int n=0; n<10; n++)
+
+  int strtId = sysLog.getLastLineID();
+  Serial.printf("Fill from [%d] with 5 more lines ..\r\n", strtId);
+  for(number=0; number<5; number++)
   {
-    sysLog.writef("-----------[ %04d ]-----------------------------", number++);
+    sysLog.writef("-----[ %07d ]------[ %04d ]-----------------------------", strtId, (number+strtId));
     //writeToSysLog("Just Started [%d]", (sysLog.getLastLineID() +1));
   }
-  
+
 } // loop()
 
 /***************************************************************************
