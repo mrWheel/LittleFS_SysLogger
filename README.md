@@ -19,7 +19,8 @@ In `setup()` add the following code to create or open a log file of 100 lines, 8
    SPIFFS.begin();
    .
    .
-   if (!sysLog.begin(100, 80)) {
+   if (!sysLog.begin(100, 80)) 
+   {
      Serial.println("sysLog.begin() error!");
      delay(10000);
    }
@@ -92,9 +93,9 @@ Opens an existing system logfile. If there is no system logfile
 or the **depth** or **lineWidth** the logfile was created with are not the same
 it will create a logfile with **depth** lines each **lineWidth** chars wide.
 <br>
-<p>- The max. **lineWidth** is **150 chars**
-<p>- The min. **lineWidth** is **50 chars**
-<p>- The min. **depth** is **10 lines**
+  - The max. **lineWidth** is **150 chars**
+  - The min. **lineWidth** is **50 chars**
+  - The min. **depth** is **10 lines**
 <br>
 Return boolean. **true** if succeeded, otherwise **false**
 
