@@ -40,7 +40,7 @@ to start reading:
    sysLog.startReading();
    while( sysLog.readNextLine(lLine, sizeof(lLine)) )
    {
-     Serial.printf("==>> [%s]\r\n", lLine.c_str());
+     Serial.printf("==>> [%s]\r\n", lLine);
    }
 ```
 
@@ -52,7 +52,7 @@ to start reading:
    sysLog.startReading();
    while( sysLog.readPreviousLine(lLine, sizeof(lLine)) )
    {
-     Serial.printf("==>> [%s]\r\n", lLine.c_str());
+     Serial.printf("==>> [%s]\r\n", lLine);
    }
 ```
 
@@ -89,9 +89,12 @@ the macro add's the time, and the function-name that called this
 
 #### ESPSL::begin(uint16_t depth,  uint16_t lineWidth)
 Opens an existing system logfile. If there is no system logfile
-it will create one with **depth** lines each **lineWidth** chars wide.
+or the **depth** or **lineWidth** the logfile was created with are not the same
+it will create a logfile with **depth** lines each **lineWidth** chars wide.
 <br>
-The max. **lineWidth** is **150 chars**
+<p>- The max. **lineWidth** is **150 chars**
+<p>- The min. **lineWidth** is **50 chars**
+<p>- The min. **depth** is **10 lines**
 <br>
 Return boolean. **true** if succeeded, otherwise **false**
 
@@ -178,7 +181,7 @@ Return bool. **true** if more records available, otherwise **false**.
 
 
 #### ESPSL::readPreviousLine()
-Reads the previous line from the system logfile and advances the read pointer one line.
+Reads the previous line from the system logfile and moves the read pointer one line back.
 <br>
 Return bool. **true** if more records available, otherwise **false**.
 
